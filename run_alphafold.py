@@ -141,6 +141,9 @@ flags.DEFINE_boolean('use_gpu_relax', None, 'Whether to relax on GPU. '
                      'Relax on GPU can be much faster than CPU, so it is '
                      'recommended to enable if possible. GPUs must be available'
                      ' if this setting is enabled.')
+flags.DEFINE_boolean('disable_amber_relax', False, 'Whether to use amber'
+                     ' relax. This can be disabled for smaller molecules to'
+                     ' reduce computation time.')
 
 FLAGS = flags.FLAGS
 
@@ -279,23 +282,24 @@ def predict_structure(
   elif models_to_relax == ModelsToRelax.NONE:
     to_relax = []
 
-  for model_name in to_relax:
-    t_0 = time.time()
-    relaxed_pdb_str, _, violations = amber_relaxer.process(
-        prot=unrelaxed_proteins[model_name])
-    relax_metrics[model_name] = {
-        'remaining_violations': violations,
-        'remaining_violations_count': sum(violations)
-    }
-    timings[f'relax_{model_name}'] = time.time() - t_0
+  if not FLAGS.disable_amber_relax:
+    for model_name in to_relax:
+      t_0 = time.time()
+      relaxed_pdb_str, _, violations = amber_relaxer.process(
+          prot=unrelaxed_proteins[model_name])
+      relax_metrics[model_name] = {
+          'remaining_violations': violations,
+          'remaining_violations_count': sum(violations)
+      }
+      timings[f'relax_{model_name}'] = time.time() - t_0
 
-    relaxed_pdbs[model_name] = relaxed_pdb_str
+      relaxed_pdbs[model_name] = relaxed_pdb_str
 
-    # Save the relaxed PDB.
-    relaxed_output_path = os.path.join(
-        output_dir, f'relaxed_{model_name}.pdb')
-    with open(relaxed_output_path, 'w') as f:
-      f.write(relaxed_pdb_str)
+      # Save the relaxed PDB.
+      relaxed_output_path = os.path.join(
+          output_dir, f'relaxed_{model_name}.pdb')
+      with open(relaxed_output_path, 'w') as f:
+        f.write(relaxed_pdb_str)
 
   # Write out relaxed PDBs in rank order.
   for idx, model_name in enumerate(ranked_order):
