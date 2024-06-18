@@ -1,3 +1,5 @@
+# Modified for use in Galaxy by Cameron Hyde (neoformit)
+#
 # Copyright 2021 DeepMind Technologies Limited
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,9 +143,12 @@ flags.DEFINE_boolean('use_gpu_relax', None, 'Whether to relax on GPU. '
                      'Relax on GPU can be much faster than CPU, so it is '
                      'recommended to enable if possible. GPUs must be available'
                      ' if this setting is enabled.')
+# Galaxy additions
 flags.DEFINE_boolean('disable_amber_relax', False, 'Whether to use amber'
                      ' relax. This can be disabled for smaller molecules to'
                      ' reduce computation time.')
+flags.DEFINE_integer('output_models', None, 'Limit the number of predicted'
+                     ' models outputs (default 5).')
 
 FLAGS = flags.FLAGS
 
@@ -413,6 +418,11 @@ def main(argv):
 
   model_runners = {}
   model_names = config.MODEL_PRESETS[FLAGS.model_preset]
+
+  # Limit number of models based on --output_models
+  if FLAGS.output_models and FLAGS.output_models < len(model_names):
+    model_names = model_names[:FLAGS.output_models]
+  
   for model_name in model_names:
     model_config = config.model_config(model_name)
     if run_multimer_system:
